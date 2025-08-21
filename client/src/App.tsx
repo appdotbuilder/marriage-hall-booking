@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -11,13 +10,15 @@ import { HallDetails } from '@/components/HallDetails';
 import { BookingForm } from '@/components/BookingForm';
 import { UserBookings } from '@/components/UserBookings';
 import { AdminPanel } from '@/components/AdminPanel';
+import { LandingPage } from '@/components/LandingPage';
 // Using type-only imports for better TypeScript compliance
-import type { MarriageHall, User, Booking } from '../../server/src/schema';
+import type { MarriageHall, User } from '../../server/src/schema';
 
 function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [selectedHall, setSelectedHall] = useState<MarriageHall | null>(null);
   const [showBookingForm, setShowBookingForm] = useState(false);
+  const [currentView, setCurrentView] = useState<'landing' | 'app'>('landing');
   const [activeTab, setActiveTab] = useState('browse');
 
   // Mock current user for demonstration (in real app, this would come from auth)
@@ -52,17 +53,43 @@ function App() {
     }
   };
 
+  const handleEnterApp = (targetTab: string = 'browse') => {
+    setCurrentView('app');
+    setActiveTab(targetTab);
+  };
+
+  const handleBackToLanding = () => {
+    setCurrentView('landing');
+    setSelectedHall(null);
+    setShowBookingForm(false);
+  };
+
+  // Show landing page by default
+  if (currentView === 'landing') {
+    return (
+      <LandingPage 
+        currentUser={currentUser}
+        onEnterApp={handleEnterApp}
+      />
+    );
+  }
+
+  // Show main application
   return (
     <div className="min-h-screen bg-gradient-to-br from-rose-50 to-purple-50">
       {/* Header */}
       <header className="bg-white shadow-sm border-b">
         <div className="container mx-auto px-4 py-4">
           <div className="flex justify-between items-center">
-            <div className="flex items-center space-x-2">
-              <span className="text-2xl">💒</span>
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-rose-600 to-purple-600 bg-clip-text text-transparent">
-                DreamVenue
-              </h1>
+            <div className="flex items-center space-x-4">
+              <Button 
+                variant="ghost" 
+                onClick={handleBackToLanding}
+                className="flex items-center space-x-2 text-rose-600 hover:text-rose-700"
+              >
+                <span className="text-xl">💒</span>
+                <span className="text-xl font-bold">DreamVenue</span>
+              </Button>
             </div>
             {currentUser && (
               <div className="flex items-center space-x-4">
