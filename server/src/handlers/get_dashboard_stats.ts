@@ -1,3 +1,8 @@
+import { db } from '../db';
+import { marriageHallsTable, bookingsTable } from '../db/schema';
+import { eq, count, sum, gte } from 'drizzle-orm';
+import { sql } from 'drizzle-orm';
+
 export interface DashboardStats {
     total_halls: number;
     active_halls: number;
@@ -11,19 +16,83 @@ export interface DashboardStats {
 }
 
 export async function getDashboardStats(): Promise<DashboardStats> {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is providing dashboard statistics for admin users.
-    // Should aggregate data from marriage halls and bookings tables.
-    // Admin-only functionality for monitoring business metrics.
-    return Promise.resolve({
-        total_halls: 0,
-        active_halls: 0,
-        total_bookings: 0,
-        pending_bookings: 0,
-        approved_bookings: 0,
-        rejected_bookings: 0,
-        cancelled_bookings: 0,
-        total_revenue: 0,
-        recent_bookings: 0
-    });
+    try {
+        // Calculate date for 30 days ago
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+        // Get hall statistics
+        const [totalHallsResult] = await db
+            .select({ count: count() })
+            .from(marriageHallsTable)
+            .execute();
+
+        const [activeHallsResult] = await db
+            .select({ count: count() })
+            .from(marriageHallsTable)
+            .where(eq(marriageHallsTable.is_active, true))
+            .execute();
+
+        // Get total bookings count
+        const [totalBookingsResult] = await db
+            .select({ count: count() })
+            .from(bookingsTable)
+            .execute();
+
+        // Get booking counts by status
+        const [pendingBookingsResult] = await db
+            .select({ count: count() })
+            .from(bookingsTable)
+            .where(eq(bookingsTable.status, 'pending'))
+            .execute();
+
+        const [approvedBookingsResult] = await db
+            .select({ count: count() })
+            .from(bookingsTable)
+            .where(eq(bookingsTable.status, 'approved'))
+            .execute();
+
+        const [rejectedBookingsResult] = await db
+            .select({ count: count() })
+            .from(bookingsTable)
+            .where(eq(bookingsTable.status, 'rejected'))
+            .execute();
+
+        const [cancelledBookingsResult] = await db
+            .select({ count: count() })
+            .from(bookingsTable)
+            .where(eq(bookingsTable.status, 'cancelled'))
+            .execute();
+
+        // Get total revenue from approved bookings
+        const [totalRevenueResult] = await db
+            .select({ 
+                total: sql<string>`COALESCE(SUM(${bookingsTable.total_amount}), 0)::text`
+            })
+            .from(bookingsTable)
+            .where(eq(bookingsTable.status, 'approved'))
+            .execute();
+
+        // Get recent bookings count (last 30 days)
+        const [recentBookingsResult] = await db
+            .select({ count: count() })
+            .from(bookingsTable)
+            .where(gte(bookingsTable.created_at, thirtyDaysAgo))
+            .execute();
+
+        return {
+            total_halls: totalHallsResult.count,
+            active_halls: activeHallsResult.count,
+            total_bookings: totalBookingsResult.count,
+            pending_bookings: pendingBookingsResult.count,
+            approved_bookings: approvedBookingsResult.count,
+            rejected_bookings: rejectedBookingsResult.count,
+            cancelled_bookings: cancelledBookingsResult.count,
+            total_revenue: parseFloat(totalRevenueResult.total),
+            recent_bookings: recentBookingsResult.count
+        };
+    } catch (error) {
+        console.error('Dashboard stats calculation failed:', error);
+        throw error;
+    }
 }
